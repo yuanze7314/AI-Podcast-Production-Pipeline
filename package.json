@@ -1,0 +1,31 @@
+{
+  "name": "ai-podcast-generator",
+  "version": "1.0.0",
+  "description": "将书籍转换为AI播客的三阶段流水线系统",
+  "main": "src/orchestrate.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/orchestrate.js",
+    "phase1": "node src/run-phase1.js",
+    "phase2": "node src/run-phase2.js",
+    "phase3": "node src/run-phase3.js",
+    "pdf-test": "node src/utils/test-pdf.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.6.1",
+    "openai": "^6.18.0",
+    "pdf-parse": "^1.1.1",
+    "uuid": "^9.0.0",
+    "volcengine-tts": "^1.0.10",
+    "websocket": "^1.0.35",
+    "ws": "^8.14.2"
+  },
+  "keywords": [
+    "podcast",
+    "tts",
+    "ai",
+    "book"
+  ],
+  "author": "",
+  "license": "MIT"
+}
