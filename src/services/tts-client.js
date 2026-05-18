@@ -129,7 +129,7 @@ export class TTSClient {
       // 应用配置
       app: {
         appid: this.appId,
-        token: 'access_token',
+        token: this.accessToken,
         cluster: 'volc_tts_base'
       },
 

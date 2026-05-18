@@ -1,44 +1,44 @@
-/**
+﻿/**
  * ============================================================================
- * LLM客户端模块 (LLM Client)
+ * LLM瀹㈡埛绔ā鍧?(LLM Client)
  * ============================================================================
  *
- * 功能概述：
- * 本模块封装了与大语言模型(LLM)API的交互逻辑。
- * 支持多种LLM服务提供商：
- * - OpenAI 兼容协议 (OpenAI, Azure, 本地部署等)
+ * 鍔熻兘姒傝堪锛?
+ * 鏈ā鍧楀皝瑁呬簡涓庡ぇ璇█妯″瀷(LLM)API鐨勪氦浜掗€昏緫銆?
+ * 鏀寔澶氱LLM鏈嶅姟鎻愪緵鍟嗭細
+ * - OpenAI 鍏煎鍗忚 (OpenAI, Azure, 鏈湴閮ㄧ讲绛?
  * - Google Gemini
  *
  * ============================================================================
- * 核心功能：
+ * 鏍稿績鍔熻兘锛?
  * ============================================================================
  *
- * 1. chat() - 基础聊天接口
- *    - 支持同步调用
- *    - 内置重试机制
- *    - 自动区分服务商
+ * 1. chat() - 鍩虹鑱婂ぉ鎺ュ彛
+ *    - 鏀寔鍚屾璋冪敤
+ *    - 鍐呯疆閲嶈瘯鏈哄埗
+ *    - 鑷姩鍖哄垎鏈嶅姟鍟?
  *
- * 2. chatJSON() - JSON响应接口
- *    - 自动解析JSON输出
- *    - 智能提取JSON片段
+ * 2. chatJSON() - JSON鍝嶅簲鎺ュ彛
+ *    - 鑷姩瑙ｆ瀽JSON杈撳嚭
+ *    - 鏅鸿兘鎻愬彇JSON鐗囨
  *
- * 3. chatStream() - 流式响应接口
- *    - 支持token级别的流式输出
- *    - 仅支持OpenAI格式
+ * 3. chatStream() - 娴佸紡鍝嶅簲鎺ュ彛
+ *    - 鏀寔token绾у埆鐨勬祦寮忚緭鍑?
+ *    - 浠呮敮鎸丱penAI鏍煎紡
  *
  * ============================================================================
- * 配置说明：
+ * 閰嶇疆璇存槑锛?
  * ============================================================================
  *
- * 环境变量配置：
- * - OPENAI_API_KEY: API密钥
- * - OPENAI_BASE_URL: API基础URL
- * - OPENAI_MODEL: 模型名称
+ * 鐜鍙橀噺閰嶇疆锛?
+ * - OPENAI_API_KEY: API瀵嗛挜
+ * - OPENAI_BASE_URL: API鍩虹URL
+ * - OPENAI_MODEL: 妯″瀷鍚嶇О
  *
- * 配置优先级：
- * 1. 构造函数传入
- * 2. 环境变量
- * 3. 默认值
+ * 閰嶇疆浼樺厛绾э細
+ * 1. 鏋勯€犲嚱鏁颁紶鍏?
+ * 2. 鐜鍙橀噺
+ * 3. 榛樿鍊?
  *
  * @module llm-client
  * @author AI Podcast Generator
@@ -46,267 +46,306 @@
  */
 
 /**
- * LLM客户端类
+ * LLM瀹㈡埛绔被
  *
- * 职责：
- * - 管理LLM API连接
- * - 发送聊天请求
- * - 处理响应和错误
+ * 鑱岃矗锛?
+ * - 绠＄悊LLM API杩炴帴
+ * - 鍙戦€佽亰澶╄姹?
+ * - 澶勭悊鍝嶅簲鍜岄敊璇?
  *
- * 设计特点：
- * - 支持多种LLM服务商
- * - 内置自动重试机制
- * - 自动检测服务商类型
+ * 璁捐鐗圭偣锛?
+ * - 鏀寔澶氱LLM鏈嶅姟鍟?
+ * - 鍐呯疆鑷姩閲嶈瘯鏈哄埗
+ * - 鑷姩妫€娴嬫湇鍔″晢绫诲瀷
  *
  * @class LLMClient
  */
 export class LLMClient {
   /**
-   * 创建LLM客户端实例
+   * 鍒涘缓LLM瀹㈡埛绔疄渚?
    *
    * @constructor
-   * @param {Object} config - 配置对象
-   * @param {string} config.apiKey - API密钥
-   * @param {string} config.baseUrl - API基础URL
-   * @param {string} config.model - 模型名称
+   * @param {Object} config - 閰嶇疆瀵硅薄
+   * @param {string} config.apiKey - API瀵嗛挜
+   * @param {string} config.baseUrl - API鍩虹URL
+   * @param {string} config.model - 妯″瀷鍚嶇О
    */
   constructor(config = {}) {
-    /** @member {string} - API密钥，优先使用传入值，其次环境变量 */
+    /** @member {string} - API瀵嗛挜锛屼紭鍏堜娇鐢ㄤ紶鍏ュ€硷紝鍏舵鐜鍙橀噺 */
     this.apiKey = config.apiKey || process.env.OPENAI_API_KEY;
 
-    /** @member {string} - API基础URL，默认为空（使用官方API） */
+    /** @member {string} - API鍩虹URL锛岄粯璁や负绌猴紙浣跨敤瀹樻柟API锛?*/
     this.baseUrl = config.baseUrl || process.env.OPENAI_BASE_URL || '';
 
-    /** @member {string} - 模型名称，默认为GPT-4o */
+    /** @member {string} - 妯″瀷鍚嶇О锛岄粯璁や负GPT-4o */
     this.model = config.model || process.env.OPENAI_MODEL || 'gpt-4o';
 
-    /** @member {number} - 最大重试次数 */
+    /** @member {number} - 鏈€澶ч噸璇曟鏁?*/
     this.maxRetries = 3;
 
-    /** @member {number} - 重试间隔（毫秒） */
+    /** @member {number} - 閲嶈瘯闂撮殧锛堟绉掞級 */
     this.retryDelay = 2000;
 
-    // 检测是否为 Gemini API
-    // Gemini的URL包含特定域名，据此判断
-    /** @member {boolean} - 是否为Google Gemini服务 */
+    // 妫€娴嬫槸鍚︿负 Gemini API
+    // Gemini鐨刄RL鍖呭惈鐗瑰畾鍩熷悕锛屾嵁姝ゅ垽鏂?
+    /** @member {boolean} - 鏄惁涓篏oogle Gemini鏈嶅姟 */
     this.isGemini = this.baseUrl.includes('generativelanguage.googleapis.com');
+
+    this.signal = config.signal || null;
+  }
+
+  abortError() {
+    const error = new Error('任务已取消');
+    error.name = 'AbortError';
+    return error;
+  }
+
+  checkAbort() {
+    if (this.signal?.aborted) throw this.abortError();
+  }
+
+  sleep(ms) {
+    this.checkAbort();
+
+    return new Promise((resolve, reject) => {
+      const timeoutId = setTimeout(resolve, ms);
+      const onAbort = () => {
+        clearTimeout(timeoutId);
+        reject(this.abortError());
+      };
+
+      this.signal?.addEventListener('abort', onAbort, { once: true });
+    });
   }
 
   // ========================================================================
-  // 基础聊天接口
+  // 鍩虹鑱婂ぉ鎺ュ彛
   // ========================================================================
 
   /**
-   * 发送聊天消息并获取响应
+   * 鍙戦€佽亰澶╂秷鎭苟鑾峰彇鍝嶅簲
    *
-   * 这是最基础的聊天接口，包含以下特性：
-   * - 自动检测服务商类型
-   * - 内置重试机制（最多3次）
-   * - 自动处理错误和异常
+   * 杩欐槸鏈€鍩虹鐨勮亰澶╂帴鍙ｏ紝鍖呭惈浠ヤ笅鐗规€э細
+   * - 鑷姩妫€娴嬫湇鍔″晢绫诲瀷
+   * - 鍐呯疆閲嶈瘯鏈哄埗锛堟渶澶?娆★級
+   * - 鑷姩澶勭悊閿欒鍜屽紓甯?
    *
-   * 处理流程：
-   * 1. 检查是否为Gemini，调用对应方法
-   * 2. 如果调用失败，触发重试逻辑
-   * 3. 每次重试前等待2秒
-   * 4. 3次都失败则抛出最终错误
+   * 澶勭悊娴佺▼锛?
+   * 1. 妫€鏌ユ槸鍚︿负Gemini锛岃皟鐢ㄥ搴旀柟娉?
+   * 2. 濡傛灉璋冪敤澶辫触锛岃Е鍙戦噸璇曢€昏緫
+   * 3. 姣忔閲嶈瘯鍓嶇瓑寰?绉?
+   * 4. 3娆￠兘澶辫触鍒欐姏鍑烘渶缁堥敊璇?
    *
    * @async
-   * @param {string} systemPrompt - 系统提示词
-   * @param {string} userContent - 用户输入内容
-   * @param {Object} options - 可选配置
-   * @param {number} options.temperature - 温度参数（0-2）
-   * @param {boolean} options.json - 是否需要JSON输出
-   * @param {number} options.maxTokens - 最大token数
-   * @returns {Promise<string>} AI生成的文本响应
-   * @throws {Error} 当所有重试都失败时抛出
+   * @param {string} systemPrompt - 绯荤粺鎻愮ず璇?
+   * @param {string} userContent - 鐢ㄦ埛杈撳叆鍐呭
+   * @param {Object} options - 鍙€夐厤缃?
+   * @param {number} options.temperature - 娓╁害鍙傛暟锛?-2锛?
+   * @param {boolean} options.json - 鏄惁闇€瑕丣SON杈撳嚭
+   * @param {number} options.maxTokens - 鏈€澶oken鏁?
+   * @returns {Promise<string>} AI鐢熸垚鐨勬枃鏈搷搴?
+   * @throws {Error} 褰撴墍鏈夐噸璇曢兘澶辫触鏃舵姏鍑?
    *
    * @example
    * ```javascript
    * const response = await llm.chat(
-   *   '你是一个有帮助的助手',
-   *   '今天天气怎么样？',
+   *   '浣犳槸涓€涓湁甯姪鐨勫姪鎵?,
+   *   '浠婂ぉ澶╂皵鎬庝箞鏍凤紵',
    *   { temperature: 0.7 }
    * );
    * ```
    */
   async chat(systemPrompt, userContent, options = {}) {
-    // 用于存储最后一次错误
+    this.checkAbort();
+    // 鐢ㄤ簬瀛樺偍鏈€鍚庝竴娆￠敊璇?
     let lastError;
 
-    // 循环重试
-    // 从1开始，到maxRetries结束
+    // 寰幆閲嶈瘯
+    // 浠?寮€濮嬶紝鍒癿axRetries缁撴潫
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
       try {
-        // 根据服务商类型调用不同方法
+        this.checkAbort();
+        // 鏍规嵁鏈嶅姟鍟嗙被鍨嬭皟鐢ㄤ笉鍚屾柟娉?
         if (this.isGemini) {
           return await this.chatGemini(systemPrompt, userContent, options);
         } else {
           return await this.chatOpenAI(systemPrompt, userContent, options);
         }
       } catch (err) {
-        // 捕获错误，记录到lastError
+        if (err.name === 'AbortError' || this.signal?.aborted) throw this.abortError();
+        // 鎹曡幏閿欒锛岃褰曞埌lastError
         lastError = err;
 
-        // 输出警告日志
-        console.warn(`[LLM] 第 ${attempt}/${this.maxRetries} 次失败: ${err.message}`);
+        // 杈撳嚭璀﹀憡鏃ュ織
+        console.warn(`[LLM] 绗?${attempt}/${this.maxRetries} 娆″け璐? ${err.message}`);
 
-        // 如果还有重试机会，等待后继续
+        // 濡傛灉杩樻湁閲嶈瘯鏈轰細锛岀瓑寰呭悗缁х画
         if (attempt < this.maxRetries) {
-          console.log(`[LLM] 等待 ${this.retryDelay / 1000} 秒后重试...`);
-          await new Promise(r => setTimeout(r, this.retryDelay));
+          console.log(`[LLM] 绛夊緟 ${this.retryDelay / 1000} 绉掑悗閲嶈瘯...`);
+          await this.sleep(this.retryDelay);
         }
       }
     }
 
-    // 所有重试都失败，抛出最终错误
+    // 鎵€鏈夐噸璇曢兘澶辫触锛屾姏鍑烘渶缁堥敊璇?
     throw lastError;
   }
 
   /**
-   * OpenAI格式API调用
+   * OpenAI鏍煎紡API璋冪敤
    *
-   * 使用OpenAI官方的SDK进行API调用。
-   * 支持任何兼容OpenAI API格式的服务。
+   * 浣跨敤OpenAI瀹樻柟鐨凷DK杩涜API璋冪敤銆?
+   * 鏀寔浠讳綍鍏煎OpenAI API鏍煎紡鐨勬湇鍔°€?
    *
-   * 参数说明：
-   * - temperature: 控制输出随机性（0=确定性，2=创造性）
-   * - response_format: JSON模式确保输出JSON
-   * - max_tokens: 限制最大输出token数
+   * 鍙傛暟璇存槑锛?
+   * - temperature: 鎺у埗杈撳嚭闅忔満鎬э紙0=纭畾鎬э紝2=鍒涢€犳€э級
+   * - response_format: JSON妯″紡纭繚杈撳嚭JSON
+   * - max_tokens: 闄愬埗鏈€澶ц緭鍑簍oken鏁?
    *
    * @async
-   * @param {string} systemPrompt - 系统提示词
-   * @param {string} userContent - 用户输入
-   * @param {Object} options - 配置选项
-   * @returns {Promise<string>} 文本响应
+   * @param {string} systemPrompt - 绯荤粺鎻愮ず璇?
+   * @param {string} userContent - 鐢ㄦ埛杈撳叆
+   * @param {Object} options - 閰嶇疆閫夐」
+   * @returns {Promise<string>} 鏂囨湰鍝嶅簲
    */
   async chatOpenAI(systemPrompt, userContent, options = {}) {
-    // 动态导入OpenAI SDK
-    // 使用import()语法，支持ES Module
+    this.checkAbort();
+    // 鍔ㄦ€佸鍏penAI SDK
+    // 浣跨敤import()璇硶锛屾敮鎸丒S Module
     const { default: OpenAI } = await import('openai');
 
-    // 创建OpenAI客户端
+    // 鍒涘缓OpenAI瀹㈡埛绔?
     const client = new OpenAI({
       apiKey: this.apiKey,
       baseURL: this.baseUrl
     });
 
-    // 构建请求
-    const response = await client.chat.completions.create({
-      // 使用配置的模型名称
+    // 鏋勫缓璇锋眰
+    const request = {
+      // 浣跨敤閰嶇疆鐨勬ā鍨嬪悕绉?
       model: this.model,
 
-      // 消息数组，包含system和user消息
+      // 娑堟伅鏁扮粍锛屽寘鍚玸ystem鍜寀ser娑堟伅
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userContent }
       ],
 
-      // 温度参数，默认0.7（平衡创造性和确定性）
+      // 娓╁害鍙傛暟锛岄粯璁?.7锛堝钩琛″垱閫犳€у拰纭畾鎬э級
       temperature: options.temperature ?? 0.7,
 
-      // JSON模式（当options.json为true时启用）
+      // JSON妯″紡锛堝綋options.json涓簍rue鏃跺惎鐢級
       response_format: options.json ? { type: 'json_object' } : undefined,
 
-      // 最大输出token数
+      // 鏈€澶ц緭鍑簍oken鏁?
       max_tokens: options.maxTokens || 4096
-    });
+    };
 
-    // 提取并返回生成的文本
-    // OpenAI响应格式：response.choices[0].message.content
+    const response = await client.chat.completions.create(
+      request,
+      this.signal ? { signal: this.signal } : undefined
+    );
+    this.checkAbort();
+
+    // 鎻愬彇骞惰繑鍥炵敓鎴愮殑鏂囨湰
+    // OpenAI鍝嶅簲鏍煎紡锛歳esponse.choices[0].message.content
     return response.choices[0].message.content;
   }
 
   /**
-   * Gemini格式API调用
+   * Gemini鏍煎紡API璋冪敤
    *
-   * Google Gemini使用不同的API格式。
-   * 这里手动构建请求并调用REST API。
+   * Google Gemini浣跨敤涓嶅悓鐨凙PI鏍煎紡銆?
+   * 杩欓噷鎵嬪姩鏋勫缓璇锋眰骞惰皟鐢≧EST API銆?
    *
-   * Gemini API特点：
-   * - URL格式：/models/{model}:generateContent
-   * - 请求体格式：contents数组
-   * - 支持responseMimeType指定响应格式
+   * Gemini API鐗圭偣锛?
+   * - URL鏍煎紡锛?models/{model}:generateContent
+   * - 璇锋眰浣撴牸寮忥細contents鏁扮粍
+   * - 鏀寔responseMimeType鎸囧畾鍝嶅簲鏍煎紡
    *
    * @async
-   * @param {string} systemPrompt - 系统提示词
-   * @param {string} userContent - 用户输入
-   * @param {Object} options - 配置选项
-   * @returns {Promise<string>} 文本响应
+   * @param {string} systemPrompt - 绯荤粺鎻愮ず璇?
+   * @param {string} userContent - 鐢ㄦ埛杈撳叆
+   * @param {Object} options - 閰嶇疆閫夐」
+   * @returns {Promise<string>} 鏂囨湰鍝嶅簲
    */
   async chatGemini(systemPrompt, userContent, options = {}) {
-    // 构建API URL
-    // 格式：{baseUrl}/models/{model}:generateContent?key={apiKey}
+    this.checkAbort();
+    // 鏋勫缓API URL
+    // 鏍煎紡锛歿baseUrl}/models/{model}:generateContent?key={apiKey}
     const url = `${this.baseUrl}/models/${this.model}:generateContent?key=${this.apiKey}`;
 
-    // 构建请求体
+    // 鏋勫缓璇锋眰浣?
     const body = {
       contents: [
         {
           parts: [
-            // Gemini使用特定格式拼接system和user消息
+            // Gemini浣跨敤鐗瑰畾鏍煎紡鎷兼帴system鍜寀ser娑堟伅
             { text: `System: ${systemPrompt}\n\nUser: ${userContent}` }
           ]
         }
       ],
 
-      // 生成配置
+      // 鐢熸垚閰嶇疆
       generationConfig: {
-        // 温度参数
+        // 娓╁害鍙傛暟
         temperature: options.temperature ?? 0.7,
-        // 最大输出token数
+        // 鏈€澶ц緭鍑簍oken鏁?
         maxOutputTokens: options.maxTokens || 4096,
-        // 响应MIME类型（用于JSON模式）
+        // 鍝嶅簲MIME绫诲瀷锛堢敤浜嶫SON妯″紡锛?
         responseMimeType: options.json ? 'application/json' : undefined
       }
     };
 
-    // 发送HTTP POST请求
+    // 鍙戦€丠TTP POST璇锋眰
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
+      signal: this.signal || undefined
     });
+    this.checkAbort();
 
-    // 检查响应状态
+    // 妫€鏌ュ搷搴旂姸鎬?
     if (!response.ok) {
-      // 读取错误信息
+      // 璇诲彇閿欒淇℃伅
       const err = await response.text();
       throw new Error(`Gemini API Error: ${err}`);
     }
 
-    // 解析响应JSON
+    // 瑙ｆ瀽鍝嶅簲JSON
     const data = await response.json();
 
-    // 提取生成的文本
-    // Gemini响应格式：data.candidates[0].content.parts[0].text
+    // 鎻愬彇鐢熸垚鐨勬枃鏈?
+    // Gemini鍝嶅簲鏍煎紡锛歞ata.candidates[0].content.parts[0].text
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
     return text;
   }
 
   // ========================================================================
-  // JSON响应接口
+  // JSON鍝嶅簲鎺ュ彛
   // ========================================================================
 
   /**
-   * 发送消息并自动解析JSON
+   * 鍙戦€佹秷鎭苟鑷姩瑙ｆ瀽JSON
    *
-   * 这是chat()的包装方法，专门用于需要JSON输出的场景。
-   * 包含以下特性：
-   * - 自动启用JSON模式
-   * - 自动解析JSON响应
-   * - 智能提取JSON片段（如果LLM添加了markdown格式）
+   * 杩欐槸chat()鐨勫寘瑁呮柟娉曪紝涓撻棬鐢ㄤ簬闇€瑕丣SON杈撳嚭鐨勫満鏅€?
+   * 鍖呭惈浠ヤ笅鐗规€э細
+   * - 鑷姩鍚敤JSON妯″紡
+   * - 鑷姩瑙ｆ瀽JSON鍝嶅簲
+   * - 鏅鸿兘鎻愬彇JSON鐗囨锛堝鏋淟LM娣诲姞浜唌arkdown鏍煎紡锛?
    *
-   * 使用场景：
-   * - 需要结构化数据的Agent调用
-   * - metadata、章节档案、脚本等
+   * 浣跨敤鍦烘櫙锛?
+   * - 闇€瑕佺粨鏋勫寲鏁版嵁鐨凙gent璋冪敤
+   * - metadata銆佺珷鑺傛。妗堛€佽剼鏈瓑
    *
    * @async
-   * @param {string} systemPrompt - 系统提示词
-   * @param {string} userContent - 用户输入
-   * @param {Object} options - 配置选项
-   * @returns {Promise<Object>} 解析后的JSON对象
-   * @throws {Error} 当JSON解析失败时抛出
+   * @param {string} systemPrompt - 绯荤粺鎻愮ず璇?
+   * @param {string} userContent - 鐢ㄦ埛杈撳叆
+   * @param {Object} options - 閰嶇疆閫夐」
+   * @returns {Promise<Object>} 瑙ｆ瀽鍚庣殑JSON瀵硅薄
+   * @throws {Error} 褰揓SON瑙ｆ瀽澶辫触鏃舵姏鍑?
    *
    * @example
    * ```javascript
@@ -318,51 +357,78 @@ export class LLMClient {
    * ```
    */
   async chatJSON(systemPrompt, userContent, options = {}) {
-    // 先调用chat方法，设置json: true
-    let content = await this.chat(systemPrompt, userContent, {
+    const content = await this.chat(systemPrompt, userContent, {
       ...options,
-      json: true  // 启用JSON模式
+      maxTokens: options.maxTokens || 8192,
+      json: true
     });
 
-    // 尝试解析JSON
-    try {
-      // 直接解析（如果响应是纯JSON）
-      return JSON.parse(content);
-    } catch (e) {
-      // 如果直接解析失败，尝试从markdown代码块中提取JSON
-      // 很多LLM会这样输出：```json\n{...}\n```
-      const match = content.match(/\{[\s\S]*\}/);
-      if (match) {
-        return JSON.parse(match[0]);
-      }
+    const parsed = this.tryParseJSON(content);
+    if (parsed.ok) return parsed.value;
 
-      // 如果还是失败，抛出错误
-      // 显示错误信息和内容片段（截取前100字符）
-      throw new Error(`无法解析JSON响应: ${content.slice(0, 100)}...`);
+    const repaired = await this.repairJSON(content, options);
+    const repairedParsed = this.tryParseJSON(repaired);
+    if (repairedParsed.ok) return repairedParsed.value;
+
+    throw new Error(`无法解析JSON响应: ${content.slice(0, 160)}...`);
+  }
+
+  tryParseJSON(content) {
+    try {
+      return { ok: true, value: JSON.parse(content) };
+    } catch {}
+
+    const fenced = content.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    if (fenced) {
+      try {
+        return { ok: true, value: JSON.parse(fenced[1]) };
+      } catch {}
     }
+
+    const start = content.indexOf('{');
+    const end = content.lastIndexOf('}');
+    if (start >= 0 && end > start) {
+      try {
+        return { ok: true, value: JSON.parse(content.slice(start, end + 1)) };
+      } catch {}
+    }
+
+    return { ok: false };
+  }
+
+  async repairJSON(content, options = {}) {
+    return this.chat(
+      '你是一个严格的 JSON 修复器。只返回合法 JSON，不要解释，不要使用 Markdown。保留原始字段含义；如果原内容被截断，尽量用空数组、空字符串或 false 补齐缺失字段。',
+      `请修复下面这段内容为合法 JSON：` + '`n`n' + content,
+      {
+        temperature: 0,
+        json: true,
+        maxTokens: options.maxTokens || 8192
+      }
+    );
   }
 
   // ========================================================================
-  // 流式响应接口
+  // 娴佸紡鍝嶅簲鎺ュ彛
   // ========================================================================
 
   /**
-   * 流式响应（仅OpenAI支持）
+   * 娴佸紡鍝嶅簲锛堜粎OpenAI鏀寔锛?
    *
-   * 使用场景：
-   * - 需要实时显示生成过程
-   * - 生成长文本时需要逐步输出
+   * 浣跨敤鍦烘櫙锛?
+   * - 闇€瑕佸疄鏃舵樉绀虹敓鎴愯繃绋?
+   * - 鐢熸垚闀挎枃鏈椂闇€瑕侀€愭杈撳嚭
    *
-   * 实现说明：
-   * - 使用Generator函数实现yield
-   * - Gemini暂不支持简单流式，回退到完整输出
+   * 瀹炵幇璇存槑锛?
+   * - 浣跨敤Generator鍑芥暟瀹炵幇yield
+   * - Gemini鏆備笉鏀寔绠€鍗曟祦寮忥紝鍥為€€鍒板畬鏁磋緭鍑?
    *
    * @async
    * @generator
-   * @param {string} systemPrompt - 系统提示词
-   * @param {string} userContent - 用户输入
-   * @param {Object} options - 配置选项
-   * @yields {string} 每次生成的文本片段
+   * @param {string} systemPrompt - 绯荤粺鎻愮ず璇?
+   * @param {string} userContent - 鐢ㄦ埛杈撳叆
+   * @param {Object} options - 閰嶇疆閫夐」
+   * @yields {string} 姣忔鐢熸垚鐨勬枃鏈墖娈?
    *
    * @example
    * ```javascript
@@ -372,48 +438,48 @@ export class LLMClient {
    * ```
    */
   async *chatStream(systemPrompt, userContent, options = {}) {
-    // Gemini暂不支持流式，回退到完整输出
+    // Gemini鏆備笉鏀寔娴佸紡锛屽洖閫€鍒板畬鏁磋緭鍑?
     if (this.isGemini) {
       const content = await this.chat(systemPrompt, userContent, options);
       yield content;
       return;
     }
 
-    // 动态导入OpenAI SDK
+    // 鍔ㄦ€佸鍏penAI SDK
     const { default: OpenAI } = await import('openai');
 
-    // 创建OpenAI客户端
+    // 鍒涘缓OpenAI瀹㈡埛绔?
     const client = new OpenAI({
       apiKey: this.apiKey,
       baseURL: this.baseUrl
     });
 
-    // 创建流式请求
+    // 鍒涘缓娴佸紡璇锋眰
     const stream = await client.chat.completions.create({
       model: this.model,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userContent }
       ],
-      stream: true,  // 启用流式模式
+      stream: true,  // 鍚敤娴佸紡妯″紡
       temperature: options.temperature ?? 0.7
     });
 
-    // 遍历流式响应
+    // 閬嶅巻娴佸紡鍝嶅簲
     for await (const chunk of stream) {
-      // 提取delta内容
+      // 鎻愬彇delta鍐呭
       const content = chunk.choices[0]?.delta?.content;
-      // 如果有内容，yield出去
+      // 濡傛灉鏈夊唴瀹癸紝yield鍑哄幓
       if (content) yield content;
     }
   }
 }
 
 /**
- * LLM客户端单例实例
+ * LLM瀹㈡埛绔崟渚嬪疄渚?
  *
- * 预创建默认配置的客户端实例，
- * 方便外部模块直接导入使用。
+ * 棰勫垱寤洪粯璁ら厤缃殑瀹㈡埛绔疄渚嬶紝
+ * 鏂逛究澶栭儴妯″潡鐩存帴瀵煎叆浣跨敤銆?
  *
  * @type {LLMClient}
  */

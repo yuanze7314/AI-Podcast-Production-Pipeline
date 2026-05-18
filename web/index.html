@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>AI Podcast Studio</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <span class="label">Production Console</span>
+        <h1>AI Podcast Studio</h1>
+        <p>项目输入、分阶段生成、章节级编辑、分章音频与完整音频合成。</p>
+      </div>
+      <button id="refreshBtn" class="icon-btn" title="刷新状态" aria-label="刷新状态">↻</button>
+    </header>
+
+    <main class="workspace">
+      <aside class="project-pane">
+        <section class="section">
+          <h2>项目</h2>
+          <div id="projectList" class="project-list"></div>
+        </section>
+
+        <section class="section">
+          <h2>输入</h2>
+          <form id="projectForm" class="form">
+            <label>
+              项目名称
+              <input name="name" required placeholder="例如：蛤蟆先生播客">
+            </label>
+            <label>
+              书籍 PDF 路径
+              <input name="bookPath" required placeholder="./测试书籍/book.pdf">
+            </label>
+            <label>
+              读者评论路径
+              <input name="reviewsPath" required placeholder="./测试书籍/reviews.txt">
+            </label>
+            <label>
+              目录路径
+              <input name="tocPath" required placeholder="./测试书籍/toc.txt">
+            </label>
+            <label>
+              声线配置
+              <input name="voiceMapPath" value="./src/config/voice_map.json">
+            </label>
+
+            <div class="form-group">
+              <h3>Agent / LLM API</h3>
+              <label>
+                API Key
+                <input name="openaiApiKey" type="password" placeholder="OpenAI 兼容接口 Key">
+              </label>
+              <label>
+                Base URL
+                <input name="openaiBaseUrl" placeholder="例如 https://api.openai.com/v1">
+              </label>
+              <label>
+                Model
+                <input name="openaiModel" placeholder="例如 gpt-4o">
+              </label>
+            </div>
+
+            <div class="form-group">
+              <h3>豆包 TTS API</h3>
+              <label>
+                App ID
+                <input name="volcengineAppId" placeholder="火山引擎控制台中的 App ID">
+              </label>
+              <label>
+                Access Token
+                <input name="volcengineAccessToken" type="password" placeholder="火山引擎控制台中的访问令牌">
+              </label>
+              <label>
+                Endpoint（可选）
+                <input name="volcengineTtsEndpoint" placeholder="默认使用播客 TTS WebSocket 地址">
+              </label>
+              <label>
+                Resource ID（可选）
+                <input name="volcengineResourceId" placeholder="默认 volc.service_type.10050">
+              </label>
+              <label>
+                App Key（可选）
+                <input name="volcengineAppKey" type="password" placeholder="默认使用项目内置值">
+              </label>
+            </div>
+
+            <label>
+              音频生成间隔毫秒
+              <input name="audioRetryDelayMs" type="number" min="0" step="500" value="3000">
+            </label>
+            <label class="check-row">
+              <input name="skipExistingAudio" type="checkbox" checked>
+              只跳过已是最新的分章音频
+            </label>
+            <div class="form-actions">
+              <button type="submit" class="primary">保存项目</button>
+              <button type="button" id="deleteProjectBtn">删除项目</button>
+            </div>
+          </form>
+        </section>
+      </aside>
+
+      <section class="main-pane">
+        <div class="status-bar">
+          <div>
+            <span class="label">当前项目</span>
+            <strong id="currentProject">未选择</strong>
+          </div>
+          <div>
+            <span class="label">任务</span>
+            <strong id="jobState">空闲</strong>
+          </div>
+          <div class="job-control">
+            <span class="label">控制</span>
+            <button id="cancelJobBtn" class="danger-btn" type="button">终止任务</button>
+          </div>
+        </div>
+
+        <section class="section">
+          <h2>生产阶段</h2>
+          <div class="stage-grid">
+            <button data-stage="phase1">Phase 1 提取</button>
+            <button data-stage="phase2">Phase 2 编剧</button>
+            <button data-stage="review">导出审阅</button>
+            <button data-stage="audio">生成全部音频</button>
+            <button data-stage="merge">合成完整音频</button>
+            <button data-stage="all" class="primary">完整流水线</button>
+          </div>
+          <div id="artifactStatus" class="artifact-status"></div>
+          <div
+            id="progressWrap"
+            class="progress-wrap"
+            role="progressbar"
+            aria-labelledby="progressLabel"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="0"
+          >
+            <div class="progress-header">
+              <span id="progressLabel" aria-live="polite">等待任务</span>
+              <strong id="progressPercent">0%</strong>
+            </div>
+            <div class="progress-track">
+              <div id="progressBar" class="progress-bar"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-title">
+            <h2>章节工作台</h2>
+            <div class="button-row">
+              <button id="loadChaptersBtn">读取目录</button>
+              <button id="refreshChapterBtn">刷新本章</button>
+            </div>
+          </div>
+
+          <div class="chapter-workbench">
+            <div id="chapterList" class="chapter-list"></div>
+
+            <article class="chapter-editor">
+              <div class="chapter-editor-head">
+                <div>
+                  <span class="label">选中章节</span>
+                  <h3 id="selectedChapterTitle">未选择章节</h3>
+                </div>
+                <div id="selectedChapterBadges" class="chapter-badges"></div>
+              </div>
+
+              <div id="chapterAudioPanel" class="audio-panel"></div>
+
+              <div class="chapter-actions">
+                <button id="saveChapterBtn">保存文本</button>
+                <button id="chapterPipelineBtn">重跑本章脚本</button>
+                <button id="chapterAudioBtn">保存并生成本章音频</button>
+                <button id="chapterRemixBtn" class="primary">保存并重合成完整音频</button>
+              </div>
+
+              <textarea id="chapterText" class="review-text" spellcheck="false" aria-label="章节对话文本">读取目录并选择章节后，可以在这里查看和修改该章对话文本。</textarea>
+            </article>
+          </div>
+        </section>
+
+        <section class="section">
+          <h2>产出</h2>
+          <dl class="output-list">
+            <dt>审阅文本</dt>
+            <dd id="reviewPath">-</dd>
+            <dt>分章音频</dt>
+            <dd id="audioPath">-</dd>
+            <dt>完整音频</dt>
+            <dd id="finalAudioPath">-</dd>
+          </dl>
+        </section>
+      </section>
+    </main>
+
+    <div id="toast" class="toast" hidden></div>
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>

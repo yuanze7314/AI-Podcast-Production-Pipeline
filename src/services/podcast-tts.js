@@ -74,6 +74,13 @@ import fs from 'fs';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import 'dotenv/config';
+import { readJsonc } from '../utils/jsonc.js';
+
+function createAbortError() {
+  const error = new Error('任务已取消');
+  error.name = 'AbortError';
+  return error;
+}
 
 // ============================================================================
 // 常量定义
@@ -424,6 +431,9 @@ export class PodcastTTSClient {
   parseResponse(buffer) {
     // 检查缓冲区有效性
     if (!buffer || buffer.length < 4) return null;
+    let event = EVENT.NONE;
+    let sessionId = null;
+    let errorCode = null;
 
     // ================================================================
     // 解析固定头部
@@ -544,12 +554,14 @@ export class PodcastTTSClient {
    * console.log(`音频已保存: ${result.outputPath}`);
    * ```
    */
-  async generatePodcast(scriptPath, voiceMapPath, outputPath) {
+  async generatePodcast(scriptPath, voiceMapPath, outputPath, options = {}) {
+    const signal = options.signal || null;
+    if (signal?.aborted) throw createAbortError();
     // 读取对话脚本
     const script = JSON.parse(fs.readFileSync(scriptPath, 'utf8'));
 
     // 读取声音映射配置
-    const voiceMap = JSON.parse(fs.readFileSync(voiceMapPath, 'utf8'));
+    const voiceMap = readJsonc(voiceMapPath);
 
     // 生成唯一标识符
     const requestId = uuidv4();
@@ -591,11 +603,42 @@ export class PodcastTTSClient {
     // WebSocket通信流程
     // ================================================================
     return new Promise((resolve, reject) => {
+      let settled = false;
+      let aborted = false;
       // 超时定时器
       let timeoutId = null;
 
       // 创建WebSocket连接
       const ws = new WebSocket(this.endpoint, { headers: this.getHeaders() });
+
+      const cleanup = () => {
+        if (timeoutId) clearTimeout(timeoutId);
+        signal?.removeEventListener('abort', onAbort);
+      };
+
+      const resolveOnce = value => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        resolve(value);
+      };
+
+      const rejectOnce = error => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        reject(error);
+      };
+
+      const onAbort = () => {
+        aborted = true;
+        try {
+          ws.terminate();
+        } catch {}
+        rejectOnce(createAbortError());
+      };
+
+      signal?.addEventListener('abort', onAbort, { once: true });
 
       // 收集音频数据块
       const audioChunks = [];
@@ -636,7 +679,7 @@ export class PodcastTTSClient {
         if (response.msgType === 15) {
           console.error(`[TTS] 服务器错误: ${JSON.stringify(response.payload)}`);
           ws.close();
-          reject(new Error(`服务器错误: ${JSON.stringify(response.payload)}`));
+          rejectOnce(new Error(`服务器错误: ${JSON.stringify(response.payload)}`));
           return;
         }
 
@@ -653,7 +696,7 @@ export class PodcastTTSClient {
           case EVENT.CONNECTION_FAILED:
             console.error(`[TTS] 连接失败: ${JSON.stringify(response.payload)}`);
             ws.close();
-            reject(new Error('连接失败'));
+            rejectOnce(new Error('连接失败'));
             break;
 
           // ----------------------------------------
@@ -667,7 +710,7 @@ export class PodcastTTSClient {
           case EVENT.SESSION_FAILED:
             console.error(`[TTS] 会话失败: ${JSON.stringify(response.payload)}`);
             ws.close();
-            reject(new Error('会话失败'));
+            rejectOnce(new Error('会话失败'));
             break;
 
           // ----------------------------------------
@@ -710,11 +753,11 @@ export class PodcastTTSClient {
               ws.send(this.buildFinishConnection());
 
               // 返回成功结果
-              resolve({ success: true, outputPath, size: fullAudio.length });
+              resolveOnce({ success: true, outputPath, size: fullAudio.length });
             } else {
               // 没有收到音频数据
               ws.send(this.buildFinishConnection());
-              reject(new Error('没有收到音频数据'));
+              rejectOnce(new Error('没有收到音频数据'));
             }
             break;
 
@@ -747,6 +790,7 @@ export class PodcastTTSClient {
       ws.on('close', (code, reason) => {
         console.log(`[TTS] 连接关闭: code=${code}`);
         if (timeoutId) clearTimeout(timeoutId);
+        if (aborted || settled) return;
 
         // 如果已经收集到音频数据，保存文件
         if (audioChunks.length > 0) {
@@ -758,9 +802,9 @@ export class PodcastTTSClient {
           fs.writeFileSync(outputPath, fullAudio);
           const sizeMB = (fullAudio.length / 1024 / 1024).toFixed(2);
           console.log(`[TTS] 音频已保存: ${outputPath} (${sizeMB} MB)`);
-          resolve({ success: true, outputPath, size: fullAudio.length });
+          resolveOnce({ success: true, outputPath, size: fullAudio.length });
         } else {
-          reject(new Error(`连接关闭: ${reason?.toString() || code}`));
+          rejectOnce(new Error(`连接关闭: ${reason?.toString() || code}`));
         }
       });
 
@@ -770,12 +814,13 @@ export class PodcastTTSClient {
       ws.on('error', (err) => {
         console.error(`[TTS] 错误: ${err.message}`);
         if (timeoutId) clearTimeout(timeoutId);
-        reject(err);
+        rejectOnce(err);
       });
 
       // 设置超时保护（2分钟）
       timeoutId = setTimeout(() => {
         console.log('[TTS] 超时');
+        rejectOnce(new Error('TTS 生成超时'));
         ws.close();
       }, 120000);
     });

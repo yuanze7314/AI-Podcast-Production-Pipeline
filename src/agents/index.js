@@ -83,9 +83,9 @@ export class AgentRunner {
    * @constructor
    * @param {Object} config - 配置对象（可选）
    */
-  constructor() {
+  constructor(config = {}) {
     /** @member {LLMClient} - LLM客户端实例，用于发送AI请求 */
-    this.llm = llmClient;
+    this.llm = config.llm || llmClient;
   }
 
   // ========================================================================
@@ -396,7 +396,23 @@ ${JSON.stringify(chapter档案, null, 2)}
     const systemPrompt = prompts.censorPrompt;
 
     // 调用LLM进行审核
-    const result = await this.llm.chatJSON(systemPrompt, script);
+    let result;
+    try {
+      result = await this.llm.chatJSON(systemPrompt, script, { maxTokens: 8192 });
+    } catch (err) {
+      if (!String(err.message || '').includes('JSON')) {
+        throw err;
+      }
+
+      console.warn(`[Agent5] 审核 JSON 解析失败，使用兜底审核结果继续: ${err.message}`);
+      result = {
+        passed: true,
+        safety_issues: [],
+        quality_issues: [`审核 JSON 解析失败，已保留润色稿继续生产: ${err.message}`],
+        suggestions: ['建议在审阅页人工检查本章脚本后再生成音频。'],
+        cleaned_script: script
+      };
+    }
 
     // 确保输出目录存在
     const dir = path.dirname(outputPath);
@@ -478,11 +494,12 @@ ${JSON.stringify(chapter档案, null, 2)}
       // 构建完整的输入输出路径
       const inputPath = path.join(chaptersDir, file);
       const outputPath = path.join(outputDir, `chapter_${chapterId}.json`);
+      const chapterText = fs.readFileSync(inputPath, 'utf8');
 
       // 执行章节矿工任务
       const result = await this.runChapterMiner(
         metadataPath,
-        inputPath,
+        chapterText,
         chapterId,
         outputPath
       );

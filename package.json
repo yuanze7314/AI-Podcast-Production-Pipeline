@@ -1,15 +1,20 @@
 {
   "name": "ai-podcast-generator",
   "version": "1.0.0",
-  "description": "将书籍转换为AI播客的三阶段流水线系统",
-  "main": "src/orchestrate.js",
+  "description": "Turn books into reviewable, staged AI podcast productions.",
+  "main": "src/cli.js",
   "type": "module",
   "scripts": {
-    "start": "node src/orchestrate.js",
-    "phase1": "node src/run-phase1.js",
-    "phase2": "node src/run-phase2.js",
-    "phase3": "node src/run-phase3.js",
-    "pdf-test": "node src/utils/test-pdf.js"
+    "start": "node src/cli.js all",
+    "phase1": "node src/cli.js phase1",
+    "phase2": "node src/cli.js phase2",
+    "phase3": "node src/cli.js audio all",
+    "pdf-test": "node src/utils/test-pdf.js",
+    "review": "node src/cli.js review",
+    "audio": "node src/cli.js audio all",
+    "merge": "node src/cli.js merge",
+    "status": "node src/cli.js status",
+    "ui": "node src/server.js"
   },
   "dependencies": {
     "dotenv": "^16.6.1",
