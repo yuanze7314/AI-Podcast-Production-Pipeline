@@ -87,6 +87,22 @@ type ScriptPipelineResult = {
   script_blocks: ScriptBlock[];
 };
 
+type ScriptGraphResult = {
+  project_id: string;
+  chapter_id: string;
+  book_type: string | null;
+  analysis: Record<string, unknown> | null;
+  plan: Record<string, unknown> | null;
+  script_blocks: ScriptBlock[];
+  review_report: Record<string, unknown> | null;
+  review_passed: boolean;
+  retry_count: number;
+  max_retries: number;
+  next_action: string | null;
+  error: string | null;
+  saved_artifact_ids: Record<string, unknown>;
+};
+
 type PodcastPipelineResult = ScriptPipelineResult & {
   tts_task: TtsTask;
 };
@@ -152,6 +168,11 @@ type PipelineRunState = {
   chapters_skipped?: number;
   elapsed_seconds?: number;
   started_at?: number;
+  book_type?: string | null;
+  review_passed?: boolean;
+  retry_count?: number;
+  max_retries?: number;
+  next_action?: string | null;
   tts_status?: string;
   rounds?: string;
   task_id?: string;
@@ -381,7 +402,11 @@ function App() {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       setNotice(message);
-      if (label === "生成单章播客" || label === "真实API脚本") {
+      if (
+        label === "生成单章播客" ||
+        label === "真实API脚本" ||
+        label.includes("LangGraph脚本")
+      ) {
         setPipelineRun({ label, status: "failed", message });
       }
     } finally {
@@ -391,14 +416,14 @@ function App() {
 
   async function runBatchScript() {
     setPipelineRun({
-      label: "批量脚本",
+      label: "批量LangGraph脚本",
       status: "running",
       target_chapters: chapters.length,
       started_at: Date.now(),
-      message: "跳过已有脚本，只生成缺少脚本的章节",
+      message: "使用类型路由编排，跳过已有脚本章节",
     });
     const data = await api<BatchScriptResult>(
-      `/projects/${selectedProjectId}/chapters/script-batch`,
+      `/projects/${selectedProjectId}/chapters/script-graph-batch`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -406,7 +431,7 @@ function App() {
       },
     );
     setPipelineRun({
-      label: "批量脚本",
+      label: "批量LangGraph脚本",
       status: data.failed ? "failed" : "success",
       target_chapters: data.total,
       chapters_done: data.succeeded,
@@ -417,7 +442,7 @@ function App() {
     });
     setLastScriptFailedIds(data.failed_chapter_ids ?? []);
     if (data.failed) {
-      setNotice(`批量脚本部分失败：${data.failed} 章`);
+      setNotice(`批量LangGraph脚本部分失败：${data.failed} 章`);
     }
     await loadChapterStatuses();
     await loadLatestAnalysis();
@@ -1303,10 +1328,10 @@ function App() {
               <button
                 type="button"
                 disabled={!selectedProjectId || !chapters.length}
-                onClick={() => run("批量脚本", runBatchScript)}
+                onClick={() => run("批量LangGraph脚本", runBatchScript)}
               >
-                <Wand2 size={16} />
-                批量脚本
+                <GitMerge size={16} />
+                批量LangGraph脚本
               </button>
             </article>
             <article>
@@ -1370,60 +1395,26 @@ function App() {
               type="button"
               disabled={!selectedProjectId || !chapters.length}
               onClick={() =>
-                run("批量脚本", async () => {
-                  setPipelineRun({
-                    label: "批量脚本",
-                    status: "running",
-                    target_chapters: chapters.length,
-                    started_at: Date.now(),
-                    message: "跳过已有脚本，只生成缺少脚本的章节",
-                  });
-                  const data = await api<BatchScriptResult>(
-                    `/projects/${selectedProjectId}/chapters/script-batch`,
-                    {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ skip_existing: true }),
-                    },
-                  );
-                  setPipelineRun({
-                    label: "批量脚本",
-                    status: data.failed ? "failed" : "success",
-                    target_chapters: data.total,
-                    chapters_done: data.succeeded,
-                    chapters_skipped: data.skipped,
-                    chapters_failed: data.failed,
-                    elapsed_seconds: data.elapsed_seconds,
-                    message: `共 ${data.total} 章`,
-                  });
-                  setLastScriptFailedIds(data.failed_chapter_ids ?? []);
-                  if (data.failed) {
-                    setNotice(`批量脚本部分失败：${data.failed} 章`);
-                  }
-                  await loadChapterStatuses();
-                  await loadLatestAnalysis();
-                  await loadLatestPlan();
-                  await loadScript();
-                })
+                run("批量LangGraph脚本", runBatchScript)
               }
             >
-              <Wand2 size={16} />
-              批量脚本
+              <GitMerge size={16} />
+              批量LangGraph脚本
             </button>
             <button
               type="button"
               disabled={!selectedProjectId || !lastScriptFailedIds.length}
               onClick={() =>
-                run("重跑失败脚本", async () => {
+                run("重跑失败LangGraph脚本", async () => {
                   setPipelineRun({
-                    label: "重跑失败脚本",
+                    label: "重跑失败LangGraph脚本",
                     status: "running",
                     target_chapters: lastScriptFailedIds.length,
                     started_at: Date.now(),
                     message: "只处理上次失败的脚本章节",
                   });
                   const data = await api<BatchScriptResult>(
-                    `/projects/${selectedProjectId}/chapters/script-batch`,
+                    `/projects/${selectedProjectId}/chapters/script-graph-batch`,
                     {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
@@ -1434,7 +1425,7 @@ function App() {
                     },
                   );
                   setPipelineRun({
-                    label: "重跑失败脚本",
+                    label: "重跑失败LangGraph脚本",
                     status: data.failed ? "failed" : "success",
                     target_chapters: data.total,
                     chapters_done: data.succeeded,
@@ -1452,7 +1443,7 @@ function App() {
               }
             >
               <RefreshCw size={16} />
-              重跑失败脚本
+              重跑失败LangGraph脚本
             </button>
             <button
               type="button"
@@ -1606,6 +1597,43 @@ function App() {
               type="button"
               disabled={!selectedChapterId}
               onClick={() =>
+                run("LangGraph脚本", async () => {
+                  setPipelineRun({
+                    label: "LangGraph脚本",
+                    status: "running",
+                    started_at: Date.now(),
+                    message: "类型路由、脚本生成与审核编排中",
+                  });
+                  const data = await api<ScriptGraphResult>(
+                    `/projects/${selectedProjectId}/chapters/${selectedChapterId}/script-graph`,
+                    { method: "POST" },
+                  );
+                  setScriptBlocks(data.script_blocks);
+                  setPipelineRun({
+                    label: "LangGraph脚本",
+                    status: data.error ? "failed" : "success",
+                    script_blocks: data.script_blocks.length,
+                    book_type: data.book_type,
+                    review_passed: data.review_passed,
+                    retry_count: data.retry_count,
+                    max_retries: data.max_retries,
+                    next_action: data.next_action,
+                    message: data.error ?? "analysis / plan / script / review 已编排",
+                  });
+                  await loadLatestAnalysis();
+                  await loadLatestPlan();
+                  await loadLatestScriptReview();
+                  await loadChapterStatuses();
+                })
+              }
+            >
+              <GitMerge size={16} />
+              LangGraph脚本
+            </button>
+            <button
+              type="button"
+              disabled={!selectedChapterId}
+              onClick={() =>
                 run("真实API脚本", async () => {
                   setPipelineRun({ label: "真实API脚本", status: "running", message: "DeepSeek 处理中" });
                   const data = await api<ScriptPipelineResult>(
@@ -1743,6 +1771,10 @@ function App() {
                 {pipelineRun.chapters_skipped !== undefined && <span>{pipelineRun.chapters_skipped} 章跳过</span>}
                 {pipelineRun.chapters_failed !== undefined && <span>{pipelineRun.chapters_failed} 章失败</span>}
                 {pipelineElapsed !== null && <span>耗时 {formatElapsed(pipelineElapsed)}</span>}
+                {pipelineRun.book_type && <span>类型 {pipelineRun.book_type}</span>}
+                {pipelineRun.review_passed !== undefined && <span>审核 {pipelineRun.review_passed ? "通过" : "待处理"}</span>}
+                {pipelineRun.retry_count !== undefined && <span>重试 {pipelineRun.retry_count}/{pipelineRun.max_retries ?? 2}</span>}
+                {pipelineRun.next_action && <span>下一步 {pipelineRun.next_action}</span>}
                 {pipelineRun.tts_status && <span>TTS {pipelineRun.tts_status}</span>}
                 {pipelineRun.rounds && <span>{pipelineRun.rounds} rounds</span>}
                 {pipelineRun.task_id && <code>{pipelineRun.task_id}</code>}

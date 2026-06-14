@@ -9,3 +9,5 @@ websockets==14.1
 pymupdf==1.25.1
 python-multipart==0.0.20
 socksio==1.0.0
+langgraph==1.2.5
+langchain-core==1.4.7

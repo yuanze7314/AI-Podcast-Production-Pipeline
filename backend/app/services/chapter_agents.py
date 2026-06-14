@@ -3,10 +3,13 @@
 import json
 import re
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from app.core.config import settings
 from app.services.deepseek_client import DeepSeekClient
+
+PROMPTS_DIR = Path(__file__).resolve().parents[1] / "prompts"
 
 
 class AgentJsonError(RuntimeError):
@@ -31,6 +34,19 @@ def parse_json_response(raw: str) -> dict[str, Any]:
 class AgentOutput:
     content: dict[str, Any]
     raw: str
+
+
+def _load_prompt_template(name: str, fallback: str) -> str:
+    path = PROMPTS_DIR / name
+    if not path.exists():
+        return fallback
+    return path.read_text(encoding="utf-8").strip() or fallback
+
+
+def _prompt_name(mode: str | None, suffix: str) -> str | None:
+    if mode not in {"concept", "narrative", "report"}:
+        return None
+    return f"{mode}_{suffix}.md"
 
 
 class ChapterAgents:
@@ -135,15 +151,20 @@ class ChapterAgents:
         chapter_title: str,
         chapter_text: str,
         quality_context: dict[str, Any] | None = None,
+        mode: str | None = None,
     ) -> AgentOutput:
+        fallback_prompt = (
+            "你是 ChapterAnalysisAgent，负责把书籍单章内容解析成可用于播客创作的结构化 JSON。"
+            "只输出 JSON，不要输出 markdown。"
+        )
+        prompt_file = _prompt_name(mode, "analysis")
         return await self._json_agent_output(
             [
                 {
                     "role": "system",
-                    "content": (
-                        "你是 ChapterAnalysisAgent，负责把书籍单章内容解析成可用于播客创作的结构化 JSON。"
-                        "只输出 JSON，不要输出 markdown。"
-                    ),
+                    "content": _load_prompt_template(prompt_file, fallback_prompt)
+                    if prompt_file
+                    else fallback_prompt,
                 },
                 {
                     "role": "user",
@@ -188,20 +209,56 @@ class ChapterAgents:
             ]
         )
 
+    @staticmethod
+    def _validate_script_response(data: dict[str, Any]) -> dict[str, Any]:
+        blocks = data.get("blocks")
+        if not isinstance(blocks, list) or not blocks:
+            raise AgentJsonError("Script response must contain non-empty blocks")
+
+        for index, block in enumerate(blocks, start=1):
+            if block.get("speaker") not in {"Alice", "Dr_Ye"}:
+                raise AgentJsonError(f"Invalid speaker at block {index}")
+            block.setdefault(
+                "voice_id",
+                settings.voice_alice
+                if block["speaker"] == "Alice"
+                else settings.voice_dr_ye,
+            )
+            block.setdefault(
+                "tts_params",
+                {
+                    "encoding": settings.volcengine_tts_encoding,
+                    "sample_rate": settings.volcengine_tts_sample_rate,
+                    "speech_rate": settings.volcengine_tts_speech_rate,
+                    "emotion": None,
+                },
+            )
+            block.setdefault("locked", False)
+            block.setdefault("status", "draft")
+            block.setdefault("block_index", index)
+            block.setdefault("estimated_seconds", 0)
+            block.setdefault("source_refs", [])
+        return data
+
     async def write_script_blocks(
         self,
         chapter_title: str,
         analysis: dict[str, Any],
         plan: dict[str, Any],
         quality_context: dict[str, Any] | None = None,
+        mode: str | None = None,
     ) -> AgentOutput:
+        fallback_prompt = (
+            "你是 ScriptWriterAgent，负责生成可编辑、可 TTS 的双人播客脚本块。"
+            "只输出 JSON。speaker 只能是 Alice 或 Dr_Ye。"
+        )
+        prompt_file = _prompt_name(mode, "script")
         messages = [
             {
                 "role": "system",
-                "content": (
-                    "你是 ScriptWriterAgent，负责生成可编辑、可 TTS 的双人播客脚本块。"
-                    "只输出 JSON。speaker 只能是 Alice 或 Dr_Ye。"
-                ),
+                "content": _load_prompt_template(prompt_file, fallback_prompt)
+                if prompt_file
+                else fallback_prompt,
             },
             {
                 "role": "user",
@@ -218,37 +275,48 @@ class ChapterAgents:
             },
         ]
 
-        def validate_script(data: dict[str, Any]) -> dict[str, Any]:
-            blocks = data.get("blocks")
-            if not isinstance(blocks, list) or not blocks:
-                raise AgentJsonError("Script response must contain non-empty blocks")
+        return await self._json_agent_output(
+            messages, validator=self._validate_script_response
+        )
 
-            for index, block in enumerate(blocks, start=1):
-                if block.get("speaker") not in {"Alice", "Dr_Ye"}:
-                    raise AgentJsonError(f"Invalid speaker at block {index}")
-                block.setdefault(
-                    "voice_id",
-                    settings.voice_alice
-                    if block["speaker"] == "Alice"
-                    else settings.voice_dr_ye,
-                )
-                block.setdefault(
-                    "tts_params",
-                    {
-                        "encoding": settings.volcengine_tts_encoding,
-                        "sample_rate": settings.volcengine_tts_sample_rate,
-                        "speech_rate": settings.volcengine_tts_speech_rate,
-                        "emotion": None,
-                    },
-                )
-                block.setdefault("locked", False)
-                block.setdefault("status", "draft")
-                block.setdefault("block_index", index)
-                block.setdefault("estimated_seconds", 0)
-                block.setdefault("source_refs", [])
-            return data
-
-        return await self._json_agent_output(messages, validator=validate_script)
+    async def rewrite_script_blocks(
+        self,
+        chapter_title: str,
+        analysis: dict[str, Any],
+        plan: dict[str, Any],
+        blocks: list[dict[str, Any]],
+        revision_issues: list[dict[str, Any]],
+        quality_context: dict[str, Any] | None = None,
+        mode: str | None = None,
+    ) -> AgentOutput:
+        fallback_prompt = (
+            "你是 ScriptRewriteAgent，负责根据审核问题局部重写双人播客脚本块。"
+            "只输出 JSON。speaker 只能是 Alice 或 Dr_Ye。"
+        )
+        return await self._json_agent_output(
+            [
+                {
+                    "role": "system",
+                    "content": _load_prompt_template("rewrite_script.md", fallback_prompt),
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        f"章节标题：{chapter_title}\n\n"
+                        f"全局质量上下文：\n{json.dumps(quality_context or {}, ensure_ascii=False)}\n\n"
+                        f"章节分析：\n{json.dumps(analysis, ensure_ascii=False)}\n\n"
+                        f"播客策划：\n{json.dumps(plan, ensure_ascii=False)}\n\n"
+                        f"当前脚本块：\n{json.dumps(blocks, ensure_ascii=False)}\n\n"
+                        f"审核问题：\n{json.dumps(revision_issues, ensure_ascii=False)}\n\n"
+                        "请只重写需要修复的 draft 脚本块，并保持双人播客自然、TTS 友好。"
+                        "不要改写 locked=true 或 status=confirmed 的脚本块。"
+                        "输出 JSON，根字段为 blocks。blocks 数组元素必须包含："
+                        "speaker, speaker_role, text, estimated_seconds, source_refs。"
+                    ),
+                },
+            ],
+            validator=self._validate_script_response,
+        )
 
     async def review_script(
         self,
@@ -257,6 +325,7 @@ class ChapterAgents:
         plan: dict[str, Any] | None,
         blocks: list[dict[str, Any]],
         quality_context: dict[str, Any] | None = None,
+        mode: str | None = None,
     ) -> AgentOutput:
         def validate_review(data: dict[str, Any]) -> dict[str, Any]:
             data.setdefault("issues", [])
@@ -264,14 +333,18 @@ class ChapterAgents:
             data.setdefault("do_not_change", [])
             return data
 
+        fallback_prompt = (
+            "你是 ScriptReviewAgent，负责审核双人播客脚本质量。"
+            "只输出 JSON。不要改写脚本，不要输出新的脚本块。"
+        )
+        prompt_file = _prompt_name(mode, "review")
         return await self._json_agent_output(
             [
                 {
                     "role": "system",
-                    "content": (
-                        "你是 ScriptReviewAgent，负责审核双人播客脚本质量。"
-                        "只输出 JSON。不要改写脚本，不要输出新的脚本块。"
-                    ),
+                    "content": _load_prompt_template(prompt_file, fallback_prompt)
+                    if prompt_file
+                    else fallback_prompt,
                 },
                 {
                     "role": "user",

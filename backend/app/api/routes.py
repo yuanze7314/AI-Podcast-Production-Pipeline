@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
+from app.graphs.chapter_content_graph import run_chapter_content_graph
 from app.models.project import (
     AnalysisReportRead,
     BatchScriptRequest,
@@ -888,6 +889,87 @@ async def generate_project_tts_batch(
     }
 
 
+@router.post(
+    "/projects/{project_id}/chapters/script-graph-batch",
+    response_model=BatchScriptResult,
+)
+async def generate_project_script_graph_batch(
+    project_id: str,
+    payload: BatchScriptRequest | None = None,
+    db: Session = Depends(get_db),
+):
+    started_at = time.perf_counter()
+    _project_or_404(db, project_id)
+    payload = payload or BatchScriptRequest()
+    chapters = projects.list_chapters(db, project_id)
+    if payload.chapter_ids:
+        selected = set(payload.chapter_ids)
+        chapters = [chapter for chapter in chapters if chapter.id in selected]
+    elif payload.failed_only:
+        chapters = [
+            chapter
+            for chapter in chapters
+            if not agents.list_script_blocks(db, project_id, chapter.id)
+        ]
+    if not chapters:
+        raise HTTPException(status_code=422, detail="No chapters to generate")
+
+    results = []
+    for chapter in chapters:
+        existing_blocks = agents.list_script_blocks(db, project_id, chapter.id)
+        if payload.skip_existing and existing_blocks:
+            results.append(
+                {
+                    "chapter_id": chapter.id,
+                    "chapter_number": chapter.chapter_number,
+                    "title": chapter.title,
+                    "status": "skipped",
+                    "script_blocks": len(existing_blocks),
+                    "error_message": None,
+                }
+            )
+            continue
+
+        try:
+            state = await run_chapter_content_graph(project_id, chapter.id, db=db)
+            saved_blocks = agents.list_script_blocks(db, project_id, chapter.id)
+            error_message = state.get("error")
+            results.append(
+                {
+                    "chapter_id": chapter.id,
+                    "chapter_number": chapter.chapter_number,
+                    "title": chapter.title,
+                    "status": "failed" if error_message else "success",
+                    "script_blocks": len(saved_blocks),
+                    "error_message": error_message,
+                }
+            )
+        except (RuntimeError, AgentJsonError, KeyError, ValueError) as exc:
+            results.append(
+                {
+                    "chapter_id": chapter.id,
+                    "chapter_number": chapter.chapter_number,
+                    "title": chapter.title,
+                    "status": "failed",
+                    "script_blocks": 0,
+                    "error_message": str(exc),
+                }
+            )
+
+    return {
+        "project_id": project_id,
+        "total": len(results),
+        "succeeded": sum(1 for item in results if item["status"] == "success"),
+        "skipped": sum(1 for item in results if item["status"] == "skipped"),
+        "failed": sum(1 for item in results if item["status"] == "failed"),
+        "elapsed_seconds": round(time.perf_counter() - started_at, 2),
+        "failed_chapter_ids": [
+            item["chapter_id"] for item in results if item["status"] == "failed"
+        ],
+        "results": results,
+    }
+
+
 @router.post("/projects/{project_id}/chapters", response_model=ChapterRead)
 def create_project_chapter(
     project_id: str,
@@ -1151,6 +1233,38 @@ async def generate_chapter_script_pipeline(
         "analysis": _analysis_response(analysis),
         "plan": _plan_response(plan),
         "script_blocks": [_script_block_response(block) for block in saved],
+    }
+
+
+@router.post("/projects/{project_id}/chapters/{chapter_id}/script-graph")
+async def generate_chapter_script_graph(
+    project_id: str, chapter_id: str, db: Session = Depends(get_db)
+):
+    _project_or_404(db, project_id)
+    _chapter_or_404(db, project_id, chapter_id)
+
+    try:
+        state = await run_chapter_content_graph(project_id, chapter_id, db=db)
+    except (RuntimeError, AgentJsonError, KeyError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    return {
+        "project_id": project_id,
+        "chapter_id": chapter_id,
+        "book_type": state.get("book_type"),
+        "analysis": state.get("analysis"),
+        "plan": state.get("podcast_plan"),
+        "script_blocks": [
+            _script_block_response(block)
+            for block in agents.list_script_blocks(db, project_id, chapter_id)
+        ],
+        "review_report": state.get("review_report"),
+        "review_passed": state.get("review_passed", False),
+        "retry_count": state.get("retry_count", 0),
+        "max_retries": state.get("max_retries", 2),
+        "next_action": state.get("next_action"),
+        "error": state.get("error"),
+        "saved_artifact_ids": state.get("saved_artifact_ids", {}),
     }
 
 
