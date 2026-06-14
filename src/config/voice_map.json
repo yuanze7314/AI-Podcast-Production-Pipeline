@@ -1,0 +1,25 @@
+{
+  "speakers": {
+    "Alice": {
+      "voice_id": "zh_female_mizaitongxue_v2_saturn_bigtts",
+      "name": "咪仔同学",
+      "description": "年轻女性，活泼开朗，善于引导和提问"
+    },
+    "Dr_Ye": {
+      "voice_id": "zh_male_dayixiansheng_v2_saturn_bigtts",
+      "name": "大衣先生",
+      "description": "成熟男性，睿智沉稳，擅长分析和解答"
+    }
+  },
+  "audio_config": {
+    "format": "mp3",
+    "sample_rate": 24000,
+    "speech_rate": 0
+  },
+  "settings": {
+    "use_head_music": false,
+    "use_tail_music": false,
+    "random_order": false,
+    "aigc_watermark": false
+  }
+}

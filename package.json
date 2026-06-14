@@ -1,0 +1,36 @@
+{
+  "name": "ai-podcast-generator",
+  "version": "1.0.0",
+  "description": "Turn books into reviewable, staged AI podcast productions.",
+  "main": "src/cli.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/cli.js all",
+    "phase1": "node src/cli.js phase1",
+    "phase2": "node src/cli.js phase2",
+    "phase3": "node src/cli.js audio all",
+    "pdf-test": "node src/utils/test-pdf.js",
+    "review": "node src/cli.js review",
+    "audio": "node src/cli.js audio all",
+    "merge": "node src/cli.js merge",
+    "status": "node src/cli.js status",
+    "ui": "node src/server.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.6.1",
+    "openai": "^6.18.0",
+    "pdf-parse": "^1.1.1",
+    "uuid": "^9.0.0",
+    "volcengine-tts": "^1.0.10",
+    "websocket": "^1.0.35",
+    "ws": "^8.14.2"
+  },
+  "keywords": [
+    "podcast",
+    "tts",
+    "ai",
+    "book"
+  ],
+  "author": "",
+  "license": "MIT"
+}
