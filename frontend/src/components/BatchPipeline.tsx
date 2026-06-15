@@ -75,12 +75,24 @@ export function BatchPipeline({
           <PackageCheck size={16} />
           合成全集
         </button>
-        <a className={summary.audio ? "primaryLinkButton" : "primaryLinkButton disabled"} href={audioExportHref} download>
+        <a
+          className={summary.audio ? "primaryLinkButton" : "primaryLinkButton disabled"}
+          href={summary.audio ? audioExportHref : undefined}
+          download={summary.audio ? true : undefined}
+          aria-disabled={!summary.audio}
+          tabIndex={summary.audio ? undefined : -1}
+        >
           <Download size={16} />
           分章 ZIP
         </a>
         {fullAudioHref && (
-          <a className={fullAudioReady ? "primaryLinkButton" : "primaryLinkButton disabled"} href={fullAudioHref} download>
+          <a
+            className={fullAudioReady ? "primaryLinkButton" : "primaryLinkButton disabled"}
+            href={fullAudioReady ? fullAudioHref : undefined}
+            download={fullAudioReady ? true : undefined}
+            aria-disabled={!fullAudioReady}
+            tabIndex={fullAudioReady ? undefined : -1}
+          >
             <Download size={16} />
             全集 MP3
           </a>
