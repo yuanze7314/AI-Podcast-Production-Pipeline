@@ -1,5 +1,6 @@
 import { ChangeEvent, RefObject, useMemo, useState } from "react";
 import { FileText, FolderOpen, Play, Plus, Upload, X } from "lucide-react";
+import { inferBookTitleFromPdfName } from "../pdfTitle";
 
 type Project = {
   id: string;
@@ -57,8 +58,16 @@ export function ProjectSwitcher({
     );
   }, [projects, query]);
 
+  function autofillBookTitle(value: string) {
+    const inferred = inferBookTitleFromPdfName(value);
+    if (!bookTitle.trim() && inferred) onBookTitleChange(inferred);
+  }
+
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
-    if (event.currentTarget.files?.length) setOpen(true);
+    const file = event.currentTarget.files?.[0];
+    if (!file) return;
+    autofillBookTitle(file.name);
+    setOpen(true);
   }
 
   return (
@@ -134,7 +143,10 @@ export function ProjectSwitcher({
                 <input
                   value={localPdfPath}
                   placeholder="E:\\books\\book.pdf"
-                  onChange={(event) => onLocalPdfPathChange(event.target.value)}
+                  onChange={(event) => {
+                    onLocalPdfPathChange(event.target.value);
+                    autofillBookTitle(event.target.value);
+                  }}
                 />
               </label>
               <button type="button" disabled={busy || !selectedProject || !localPdfPath} onClick={onImportLocalPdf}>

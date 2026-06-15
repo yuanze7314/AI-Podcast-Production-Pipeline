@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.db.models import Chapter, DocumentParseRun, Project, ProjectStatus
 from app.models.document import DocumentParseResult
+from app.utils.pdf_title import infer_book_title_from_pdf_name
 from app.workflows.ocr import OCRProviderError, OCRTextExtractor
 
 try:
@@ -62,6 +63,8 @@ def import_pdf_from_path(db: Session, project: Project, pdf_path: Path) -> Proje
     target = source_dir / "book.pdf"
     shutil.copyfile(pdf_path, target)
     project.source_pdf_path = str(target)
+    if not (project.book_title or "").strip():
+        project.book_title = infer_book_title_from_pdf_name(pdf_path.name) or None
     project.status = ProjectStatus.PDF_IMPORTED
     db.commit()
     db.refresh(project)
@@ -76,6 +79,8 @@ def save_uploaded_pdf(db: Session, project: Project, filename: str, content: byt
     target = source_dir / f"book{suffix}"
     target.write_bytes(content)
     project.source_pdf_path = str(target)
+    if not (project.book_title or "").strip():
+        project.book_title = infer_book_title_from_pdf_name(filename) or None
     project.status = ProjectStatus.PDF_IMPORTED
     db.commit()
     db.refresh(project)
