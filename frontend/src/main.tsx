@@ -8,6 +8,7 @@ import { ChapterScriptDrawer } from "./components/ChapterScriptDrawer";
 import { ProjectSwitcher } from "./components/ProjectSwitcher";
 import { StatusPanel } from "./components/StatusPanel";
 import { deriveProductionSummary, sortChapterQueue } from "./productionState";
+import { getScriptGraphReview } from "./scriptGraphResult";
 import "./styles.css";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://127.0.0.1:8000/api";
@@ -94,7 +95,8 @@ type ScriptGraphResult = {
   analysis: JsonArtifact | null;
   plan: JsonArtifact | null;
   script_blocks: ScriptBlock[];
-  review: JsonArtifact | null;
+  review_report: JsonArtifact | null;
+  review?: JsonArtifact | null;
   book_type: string | null;
   review_passed: boolean;
   retry_count: number;
@@ -467,7 +469,7 @@ function App() {
       );
       setAnalysisReport(data.analysis);
       setPodcastPlan(data.plan);
-      setScriptReview(data.review);
+      setScriptReview(getScriptGraphReview(data));
       setScriptBlocks(data.script_blocks);
       setPipelineRun({
         label: "LangGraph 脚本",
