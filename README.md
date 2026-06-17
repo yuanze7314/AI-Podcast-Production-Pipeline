@@ -18,7 +18,7 @@
 
 ## 当前能力
 
-v0.1 已经跑通“真实长书到完整音频交付”的主链路。
+V2 已经跑通“真实长书到完整音频交付”的主链路。
 
 已实现能力：
 
@@ -80,7 +80,7 @@ frontend/                React/Vite 工作台
 src/                     早期 Node.js pipeline 与工具代码
 web/                     早期本地 Web 控制台
 docs/                    架构、使用说明和设计文档
-tasks/                   v0.1 任务追踪与交接清单
+tasks/                   V2 任务追踪与交接清单
 planning-artifacts/      PRD 和产品规划过程文档
 scripts/                 实验脚本和辅助工具
 tests/                   后端测试与 smoke checks
@@ -324,7 +324,7 @@ npm run build
 新窗口或新 Agent 继续开发时，优先阅读：
 
 1. `PROJECT-STATUS.md`
-2. `tasks/TASKS-v0.1.md`
+2. `tasks/TASKS-v0.1.md`（V2 任务清单）
 3. `DECISION-LOG-微信读书播客Agent.md`
 4. `ADDENDUM-微信读书播客Agent.md`
 5. `PRD-微信读书播客Agent.md`
@@ -336,12 +336,13 @@ npm run build
 E:\Agent项目\微信读书播客ai
 ```
 
-## 下一步
+## v3 版本更新目标
 
-建议继续收敛 v0.1 的 P1 体验增强：
+v3 目标是把当前“本地可跑通的整书播客工作台”升级为更稳定、更适合连续生产的版本，重点从单点功能补齐转向质量管理、失败恢复和交付体验。
 
-- 批量脚本质量审核结果的集中查看。
-- TTS 失败诊断和重试建议。
-- 更清晰的目录低置信章节筛选。
-- 更完整的交付检查清单。
-- README 截图和演示素材。
+- 生产中控台 v3：集中展示整书进度、章节状态、批量脚本审核结果、失败章节和下一步操作建议。
+- 内容质量 v3：强化 Reader Insight、Book Profile、Script Review 的联动，让整本书的脚本风格、信息密度和角色分工更一致。
+- 解析验收 v3：完善低置信章节筛选、OCR 风险提示、目录修订记录和章节结构变更反馈。
+- TTS 稳定性 v3：增加失败原因分类、重试建议、失败章节续跑、耗时和轮次统计。
+- 交付管理 v3：补齐分章 MP3、全集 MP3、ZIP、manifest、播放/下载状态的交付检查清单。
+- 演示与文档 v3：补充 GitHub README 截图、完整流程演示素材和典型长书案例说明。
