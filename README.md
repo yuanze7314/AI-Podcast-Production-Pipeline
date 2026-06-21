@@ -280,18 +280,6 @@ storage/projects/{project_id}/
 
 `storage/`、`.env`、日志、测试输出和 tessdata 语言包都不会被提交。
 
-## 验证状态
-
-项目已在本地完成以下验证：
-
-- 使用《蛤蟆先生去看心理医生》跑通 PDF 解析、章节切分、单章 DeepSeek 生成、脚本确认和火山/豆包 TTS。
-- 扫描版样本可通过 PyMuPDF OCR 解析，目录确认页能修订 OCR 错字并标记 `human_reviewed`。
-- 真实 DeepSeek API 可生成 reader insight、book profile、章节 analysis、podcast plan 和脚本块。
-- 真实火山/豆包 TTS 可生成分章 MP3，并通过前端播放器播放。
-- 长书试跑：63 页 PDF 切分 9 章，生成 114 个脚本块，9/9 章 TTS 成功，合成约 20 MB 全集 MP3，并导出分章 ZIP。
-- 后端 `python -m compileall backend\app backend\scripts` 通过。
-- 前端 `npm run build` 通过。
-
 ## 开发检查
 
 后端语法检查：
